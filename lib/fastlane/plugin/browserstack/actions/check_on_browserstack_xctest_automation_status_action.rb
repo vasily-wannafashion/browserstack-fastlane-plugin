@@ -11,14 +11,13 @@ module Fastlane
       SHARED_VALUE_NAME = "BROWSERSTACK_XCTEST_STATUS"
 
       def self.run(params)
-        config = params.values
-        config[:shared_value_name] = SHARED_VALUE_NAME
+        concrete_build_api_endpoint = REQUEST_API_ENDPOINT.clone.gsub!("{build_id}", params[:xctest_build_id])
 
-        concrete_build_api_endpoint = REQUEST_API_ENDPOINT
-                                        .gsub!("{build_id}", params[:xctest_build_id])
+        args = params.values
+        args[:shared_value_name] = SHARED_VALUE_NAME
+        args[:check_xctest_api_endpoint] = concrete_build_api_endpoint
 
-        browserstack_xctest_status =
-          Helper::BrowserstackHelper.check_xctest_automation_status(config, concrete_build_api_endpoint)
+        browserstack_xctest_status = Helper::BrowserstackHelper.check_xctest_automation_status(args)
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
         Actions.lane_context[SharedValues::BROWSERSTACK_XCTEST_STATUS] = browserstack_xctest_status.to_s

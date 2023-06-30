@@ -15,13 +15,14 @@ module Fastlane
       SHARED_VALUE_NAME = "BROWSERSTACK_LIVE_APP_ID"
 
       def self.run(params)
-        config = params.values
-        config[:artifact_type] = ARTIFACT_TYPE
-        config[:bs_product_type] = BS_PRODUCT_TYPE
-        config[:shared_value_name] = SHARED_VALUE_NAME
+        args = params.values
+        args[:artifact_type] = ARTIFACT_TYPE
+        args[:bs_product_type] = BS_PRODUCT_TYPE
+        args[:shared_value_name] = SHARED_VALUE_NAME
+        args[:supported_file_extensions] = SUPPORTED_FILE_EXTENSIONS
+        args[:upload_api_endpoint] = UPLOAD_API_ENDPOINT
 
-        browserstack_app_id =
-          Helper::BrowserstackHelper.upload_file_to_browserstack(config, SUPPORTED_FILE_EXTENSIONS, UPLOAD_API_ENDPOINT)
+        browserstack_app_id = Helper::BrowserstackHelper.upload_file_to_browserstack(args)
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
         Actions.lane_context[SharedValues::BROWSERSTACK_LIVE_APP_ID] = browserstack_app_id.to_s

@@ -20,7 +20,7 @@ module Fastlane
 
       # Uploads file to BrowserStack
       # Params :
-      # +config+:: BrowserStack's username.
+      # +args+::
       #   +browserstack_username+:: BrowserStack's username.
       #   +browserstack_access_key+:: BrowserStack's access key.
       #   +custom_id+:: Custom id for file upload.
@@ -28,17 +28,20 @@ module Fastlane
       #   +artifact_type+:: Type of the uploading file (e.g. "app"/"file" etc.).
       #   +bs_product_type+:: Type of BrowserStack product (e.g. "AppLive"/"AppAutomate" etc.).
       #   +shared_value_name+:: Name of the env for store the link to the uploaded artifact.
-      # +supported_file_extensions+:: Array with extensions allowed to upload.
-      # +upload_api_endpoint+:: BrowserStack's file upload endpoint.
-      def self.upload_file_to_browserstack(config, supported_file_extensions, upload_api_endpoint)
-        bs_username = config[:browserstack_username]
-        bs_access_key = config[:browserstack_access_key]
-        custom_id = config[:custom_id]
-        file_path = config[:file_path].to_s
+      #   +supported_file_extensions+:: Array with extensions allowed to upload.
+      #   +upload_api_endpoint+:: BrowserStack's file upload endpoint.
+      def self.upload_file_to_browserstack(args)
+        bs_username = args[:browserstack_username]
+        bs_access_key = args[:browserstack_access_key]
+        custom_id = args[:custom_id]
+        file_path = args[:file_path].to_s
 
-        artifact_type = config[:artifact_type]
-        bs_product_type = config[:bs_product_type]
-        shared_value_name = config[:shared_value_name]
+        artifact_type = args[:artifact_type]
+        bs_product_type = args[:bs_product_type]
+        shared_value_name = args[:shared_value_name]
+
+        supported_file_extensions = args[:supported_file_extensions]
+        upload_api_endpoint = args[:upload_api_endpoint]
 
         validate_file_path(file_path, supported_file_extensions)
 
@@ -55,7 +58,7 @@ module Fastlane
 
       # Runs XCTest on BrowserStack
       # Params :
-      # +config+::
+      # +args+::
       #   +browserstack_username+:: BrowserStack's username.
       #   +browserstack_access_key+:: BrowserStack's access key.
       #   +app_url+:: App under testing URL on BrowserStack.
@@ -64,21 +67,21 @@ module Fastlane
       #   +only_testing+:: Array of the tests to execute.
       #   +skip_testing+:: Array of the tests to skip.
       #   +enable_result_bundle+ :: Flag to enable/disable generating result bundles for XCTest build execution.
-      #   +shared_value_name+:: Name of the env for store the link to the uploaded artifact.
-      # +run_xctest_api_endpoint+:: BrowserStack's file upload endpoint.
-      def self.run_xctest_on_browserstack(config, run_xctest_api_endpoint)
-        bs_username = config[:browserstack_username]
-        bs_access_key = config[:browserstack_access_key]
+      #   +shared_value_name+:: Name of the env for store the link to the XCTest run.
+      #   +run_xctest_api_endpoint+:: BrowserStack's endpoint for run XCTest.
+      def self.run_xctest_on_browserstack(args)
+        bs_username = args[:browserstack_username]
+        bs_access_key = args[:browserstack_access_key]
+        shared_value_name = args[:shared_value_name]
+        run_xctest_api_endpoint = args[:run_xctest_api_endpoint]
 
         payload = {}
-        payload[:app] = config[:app_url]
-        payload[:testSuite] = config[:test_suite_url]
-        payload[:devices] = config[:devices]
-        payload["only-testing"] = config[:only_testing] unless config[:only_testing].nil?
-        payload["skip-testing"] = config[:skip_testing] unless config[:skip_testing].nil?
-        payload["enableResultBundle"] = config[:enable_result_bundle] unless config[:enable_result_bundle].nil?
-
-        shared_value_name = config[:shared_value_name]
+        payload[:app] = args[:app_url]
+        payload[:testSuite] = args[:test_suite_url]
+        payload[:devices] = args[:devices]
+        payload["only-testing"] = args[:only_testing] unless args[:only_testing].nil?
+        payload["skip-testing"] = args[:skip_testing] unless args[:skip_testing].nil?
+        payload["enableResultBundle"] = args[:enable_result_bundle] unless args[:enable_result_bundle].nil?
 
         UI.message("Launching XCTest automation run on BrowserStack...")
         response_json = execute_request(run_xctest_api_endpoint, "post", bs_username, bs_access_key, USER_AGENT, payload)
@@ -86,9 +89,9 @@ module Fastlane
         UI.success("XCTest automation run launched with app: #{payload[:app]} " +
                      "and test suite: #{payload[:testSuite]} " +
                      "on devices: #{payload[:devices]} " +
-                     "on BrowserStack Automation with bs_url: #{browserstack_artifact_id.to_s}" +
-                     "including tests: #{payload["only-testing"]}" +
-                     "skipping tests: #{payload["skip-testing"]}")
+                     "on BrowserStack Automation with bs_url: #{browserstack_artifact_id.to_s} " +
+                     "including tests: #{payload["only-testing"]} " +
+                     "skipping tests: #{payload["skip-testing"]} ")
 
         UI.success("Setting Environment variable #{shared_value_name} = #{browserstack_artifact_id.to_s}")
         ENV[shared_value_name] = browserstack_artifact_id
@@ -98,23 +101,24 @@ module Fastlane
 
       # Checks XCTest status on BrowserStack
       # Params :
-      # +config+::
+      # +args+::
       #   +browserstack_username+:: BrowserStack's username.
       #   +browserstack_access_key+:: BrowserStack's access key.
       #   +xctest_build_id+:: BrowserStack's ID of automation run.
       #   +shared_value_name+:: Name of the env for store status.
-      # +check_xctest_api_endpoint+:: BrowserStack's file upload endpoint.
-      def self.check_xctest_automation_status(config, check_xctest_api_endpoint)
-        bs_username = config[:browserstack_username]
-        bs_access_key = config[:browserstack_access_key]
-        shared_value_name = config[:shared_value_name]
+      #   +check_xctest_api_endpoint+:: BrowserStack's endpoint for checking XCTest run status.
+      def self.check_xctest_automation_status(args)
+        bs_username = args[:browserstack_username]
+        bs_access_key = args[:browserstack_access_key]
+        shared_value_name = args[:shared_value_name]
+        check_xctest_api_endpoint = args[:check_xctest_api_endpoint]
 
         UI.message("Checking XCTest automation run status on BrowserStack...")
         response_json = execute_request(check_xctest_api_endpoint, "get", bs_username, bs_access_key, USER_AGENT)
         xctest_automation_status = response_json["status"].to_s
 
         UI.success("XCTest automation run status: #{xctest_automation_status.to_s} " +
-                     "for launch ID #{config[:xctest_build_id].to_s}")
+                     "for launch ID #{args[:xctest_build_id].to_s}")
 
         UI.success("Setting Environment variable #{shared_value_name} = #{xctest_automation_status.to_s}")
         ENV[shared_value_name] = xctest_automation_status
@@ -124,16 +128,17 @@ module Fastlane
 
       # Get XCTest sessions list from BrowserStack
       # Params :
-      # +config+::
+      # +args+::
       #   +browserstack_username+:: BrowserStack's username.
       #   +browserstack_access_key+:: BrowserStack's access key.
       #   +xctest_build_id+:: BrowserStack's ID of automation run.
-      #   +shared_value_name+:: Name of the env for store the link to the uploaded artifact.
-      # +xctest_api_endpoint+:: BrowserStack's XCTest API endpoint.
-      def self.get_xctest_sessions_list(config, xctest_api_endpoint)
-        bs_username = config[:browserstack_username]
-        bs_access_key = config[:browserstack_access_key]
-        shared_value_name = config[:shared_value_name]
+      #   +shared_value_name+:: Name of the env for store sessions list.
+      #   +xctest_api_endpoint+:: BrowserStack's XCTest API endpoint.
+      def self.get_xctest_sessions_list(args)
+        bs_username = args[:browserstack_username]
+        bs_access_key = args[:browserstack_access_key]
+        shared_value_name = args[:shared_value_name]
+        xctest_api_endpoint = args[:xctest_api_endpoint]
 
         UI.message("Getting XCTest sessions list from BrowserStack...")
         response_json = execute_request(xctest_api_endpoint, "get", bs_username, bs_access_key, USER_AGENT)
@@ -150,7 +155,7 @@ module Fastlane
         end
 
         UI.success("XCTest sessions list: #{xctest_sessions_list.to_s} " +
-                     "for launch ID #{config[:xctest_build_id].to_s}")
+                     "for launch ID #{args[:xctest_build_id].to_s}")
 
         xctest_sessions_list_as_s = xctest_sessions_list.join(',')
         UI.success("Setting Environment variable #{shared_value_name} = #{xctest_sessions_list_as_s.to_s}")
@@ -161,7 +166,7 @@ module Fastlane
 
       # Download XCResult files from BrowserStack
       # Params :
-      # +config+::
+      # +args+::
       #   +browserstack_username+:: BrowserStack's username.
       #   +browserstack_access_key+:: BrowserStack's access key.
       #   +xctest_build_id+:: BrowserStack's ID of automation run.
@@ -170,19 +175,17 @@ module Fastlane
       #   +build_id_key+:: Key to replace placeholder of build_id in the `download_api_endpoint`.
       #   +session_id_key+:: Key to replace placeholder of session_id in the `download_api_endpoint`.
       #   +shared_value_name+:: Name of the env for store the paths to the downloaded artifacts.
-      # +download_api_endpoint+:: BrowserStack's xcresult file download endpoint.
-      def self.download_xcresult_files(config, download_api_endpoint)
-        bs_username = config[:browserstack_username]
-        bs_access_key = config[:browserstack_access_key]
-
-        xctest_build_id = config[:xctest_build_id]
-        xctest_sessions_list = config[:xctest_sessions_list].split(",")
-        dir_path = config[:dir_path]
-
-        build_id_key = config[:build_id_key]
-        session_id_key = config[:session_id_key]
-
-        shared_value_name = config[:shared_value_name]
+      #   +download_api_endpoint+:: BrowserStack's xcresult file download endpoint.
+      def self.download_xcresult_files(args)
+        bs_username = args[:browserstack_username]
+        bs_access_key = args[:browserstack_access_key]
+        xctest_build_id = args[:xctest_build_id]
+        xctest_sessions_list = args[:xctest_sessions_list].split(",")
+        dir_path = args[:dir_path]
+        build_id_key = args[:build_id_key]
+        session_id_key = args[:session_id_key]
+        shared_value_name = args[:shared_value_name]
+        download_api_endpoint = args[:download_api_endpoint]
 
         xcresult_paths_list = []
 
@@ -219,7 +222,7 @@ module Fastlane
         end
 
         UI.success("XCResult files list: #{xcresult_paths_list.to_s} " +
-                     "for launch ID #{config[:xctest_build_id].to_s}")
+                     "for launch ID #{args[:xctest_build_id].to_s}")
 
         xcresult_paths_list_as_s = xcresult_paths_list.join(',')
         UI.success("Setting Environment variable #{shared_value_name} = #{xcresult_paths_list_as_s.to_s}")

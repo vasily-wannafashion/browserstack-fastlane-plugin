@@ -11,14 +11,13 @@ module Fastlane
       SHARED_VALUE_NAME = "BROWSERSTACK_XCRESULT_PATHS_LIST"
 
       def self.run(params)
-        config = params.values
-        config[:shared_value_name] = SHARED_VALUE_NAME
+        args = params.values
+        args[:build_id_key] = "{build_id}"
+        args[:session_id_key] = "{session_id}"
+        args[:shared_value_name] = SHARED_VALUE_NAME
+        args[:download_api_endpoint] = REQUEST_API_ENDPOINT
 
-        config[:build_id_key] = "{build_id}"
-        config[:session_id_key] = "{session_id}"
-
-        browserstack_xcresult_paths_list =
-          Helper::BrowserstackHelper.download_xcresult_files(config, REQUEST_API_ENDPOINT)
+        browserstack_xcresult_paths_list = Helper::BrowserstackHelper.download_xcresult_files(args)
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
         Actions.lane_context[SharedValues::BROWSERSTACK_XCRESULT_PATHS_LIST] = browserstack_xcresult_paths_list.to_s
