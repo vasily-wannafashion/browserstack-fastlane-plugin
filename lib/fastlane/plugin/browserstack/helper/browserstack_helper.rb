@@ -121,6 +121,43 @@ module Fastlane
         return xctest_automation_status
       end
 
+      # Get XCTest sessions list from BrowserStack
+      # Params :
+      # +config+::
+      #   +browserstack_username+:: BrowserStack's username.
+      #   +browserstack_access_key+:: BrowserStack's access key.
+      #   +xctest_build_id+:: BrowserStack's ID of automation run.
+      #   +shared_value_name+:: Name of the env for store the link to the uploaded artifact.
+      # +xctest_api_endpoint+:: BrowserStack's XCTest API endpoint.
+      def self.get_xctest_sessions_list(config, xctest_api_endpoint)
+        bs_username = config[:browserstack_username]
+        bs_access_key = config[:browserstack_access_key]
+        shared_value_name = config[:shared_value_name]
+
+        UI.message("Getting XCTest sessions list from BrowserStack...")
+        response_json = execute_request(xctest_api_endpoint, "get", bs_username, bs_access_key, USER_AGENT)
+
+        xctest_sessions_list = []
+
+        xctest_devices = response_json["devices"]
+        xctest_devices.each do |device|
+          sessions = device["sessions"]
+          sessions.each do |session|
+            id = session["id"]
+            xctest_sessions_list.append(id)
+          end
+        end
+
+        UI.success("XCTest sessions list: #{xctest_sessions_list.to_s} " +
+                     "for launch ID #{config[:xctest_build_id].to_s}")
+
+        xctest_sessions_list_as_s = xctest_sessions_list.join(',')
+        UI.success("Setting Environment variable #{shared_value_name} = #{xctest_sessions_list_as_s.to_s}")
+        ENV[shared_value_name] = xctest_sessions_list_as_s
+
+        return xctest_sessions_list
+      end
+
       # Uploads file to BrowserStack
       # Params :
       # +browserstack_username+:: BrowserStack's username.
