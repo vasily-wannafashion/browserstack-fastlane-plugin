@@ -1,5 +1,6 @@
 require 'fastlane_core/ui/ui'
 require 'rest-client'
+require 'json'
 
 module Fastlane
   UI = FastlaneCore::UI unless Fastlane.const_defined?("UI")
@@ -9,6 +10,9 @@ module Fastlane
       # class methods that you define here become available in your action
       # as `Helper::BrowserstackHelper.your_method`
       #
+
+      USER_AGENT = "browserstack_fastlane_plugin"
+
       def self.show_message
         UI.message("Hello from the browserstack plugin helper!")
       end
@@ -52,17 +56,17 @@ module Fastlane
       # Params :
       # +browserstack_username+:: BrowserStack's username.
       # +browserstack_access_key+:: BrowserStack's access key.
-      # +custom_id+:: Custom id for file upload.
       # +file_path+:: Path to the file to be uploaded.
       # +url+:: BrowserStack's app upload endpoint.
+      # +custom_id+:: Custom id for file upload.
       def self.upload_file(browserstack_username, browserstack_access_key, file_path, url, custom_id = nil)
-        user_agent = "browserstack_fastlane_plugin"
-
         unless custom_id.nil?
-          data = '{ "custom_id": "' + custom_id + '" }'
+          data = "{ \"custom_id\": \"#{custom_id}\" }"
         end
 
-        return upload_file_to_url(url, browserstack_username, browserstack_access_key, user_agent, file_path, data)
+        response_json =
+          upload_file_to_url(url, browserstack_username, browserstack_access_key, USER_AGENT, file_path, data)
+        return response_json["custom_id"] || response_json["app_url"] || response_json["test_suite_url"]
       end
 
       # Uploads file to the given URL.
@@ -74,10 +78,6 @@ module Fastlane
       # +file_path+:: path to the file to be uploaded.
       # +data+:: additional data to the payload.
       def self.upload_file_to_url(url, username, password, user_agent, file_path, data = nil)
-        headers = {
-          "User-Agent" => user_agent
-        }
-
         payload = {
           multipart: true,
           file: File.new(file_path, 'rb')
@@ -86,6 +86,21 @@ module Fastlane
         unless data.nil?
           payload[:data] = data
         end
+
+        return execute_post_request(url, username, password, user_agent, payload)
+      end
+
+      # Executes the POST-request to the given URL.
+      # Params :
+      # +url+:: request endpoint.
+      # +username+:: username to access the URL.
+      # +password+:: password to access the URL.
+      # +user_agent+:: string that specifies the client app.
+      # +payload+:: the hash with data to be posted.
+      def self.execute_post_request(url, username, password, user_agent, payload)
+        headers = {
+          "User-Agent" => user_agent
+        }
 
         begin
           response = RestClient::Request.execute(
@@ -99,7 +114,7 @@ module Fastlane
 
           response_json = JSON.parse(response.to_s)
 
-          return response_json["custom_id"] || response_json["app_url"] || response_json["test_suite_url"]
+          return response_json
 
         rescue RestClient::ExceptionWithResponse => err
           begin
@@ -107,10 +122,10 @@ module Fastlane
           rescue
             error_response = "Internal server error"
           end
-          # Give error if upload failed.
-          UI.user_error!("App upload failed!!! Reason : #{error_response}")
+          # Give error if request failed.
+          UI.user_error!("Request failed!!! Reason : #{error_response}")
         rescue StandardError => error
-          UI.user_error!("App upload failed!!! Reason : #{error.message}")
+          UI.user_error!("Request failed!!! Reason : #{error.message}")
         end
       end
 
@@ -120,7 +135,8 @@ module Fastlane
         # Validate file extension.
         file_path_parts = file_path.split(".")
         unless file_path_parts.length > 1 && allowed_extensions.include?(file_path_parts.last)
-          UI.user_error!("file_path is invalid, only files with extensions " + allowed_extensions.to_s + " are allowed to be uploaded.")
+          UI.user_error!("file_path is invalid, only files with extensions #{allowed_extensions.to_s} " +
+                           "are allowed to be uploaded.")
         end
       end
     end
