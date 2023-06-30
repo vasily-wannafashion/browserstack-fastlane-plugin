@@ -26,12 +26,12 @@ module Fastlane
         # Set 'BROWSERSTACK_APP_ID' environment variable, if app upload was successful.
         ENV['BROWSERSTACK_APP_ID'] = browserstack_app_id
 
-        UI.success("Successfully uploaded app " + file_path + " to BrowserStack AppAutomate with app_url : " + browserstack_app_id)
+        UI.success("Successfully uploaded app " + file_path + " to BrowserStack AppAutomate with app_url : " + browserstack_app_id.to_s)
 
-        UI.success("Setting Environment variable BROWSERSTACK_APP_ID = " + browserstack_app_id)
+        UI.success("Setting Environment variable BROWSERSTACK_APP_ID = " + browserstack_app_id.to_s)
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
-        Actions.lane_context[SharedValues::BROWSERSTACK_APP_ID] = browserstack_app_id
+        Actions.lane_context[SharedValues::BROWSERSTACK_APP_ID] = browserstack_app_id.to_s
       end
 
       # Validate file_path.
