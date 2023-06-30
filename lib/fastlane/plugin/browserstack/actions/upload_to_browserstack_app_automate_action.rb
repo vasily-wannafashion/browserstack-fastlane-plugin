@@ -1,6 +1,5 @@
 require 'fastlane/action'
 require_relative '../helper/browserstack_helper'
-require 'json'
 
 module Fastlane
   module Actions
@@ -11,24 +10,18 @@ module Fastlane
       SUPPORTED_FILE_EXTENSIONS = ["apk", "ipa", "aab"]
       UPLOAD_API_ENDPOINT = "https://api-cloud.browserstack.com/app-automate/upload"
 
+      ARTIFACT_TYPE = "app"
+      BS_PRODUCT_TYPE = "AppAutomate"
+      SHARED_VALUE_NAME = "BROWSERSTACK_APP_ID"
+
       def self.run(params)
-        browserstack_username = params[:browserstack_username] # Required
-        browserstack_access_key = params[:browserstack_access_key] # Required
-        custom_id = params[:custom_id]
-        file_path = params[:file_path].to_s # Required
+        config = params.values
+        config[:artifact_type] = ARTIFACT_TYPE
+        config[:bs_product_type] = BS_PRODUCT_TYPE
+        config[:shared_value_name] = SHARED_VALUE_NAME
 
-        Helper::BrowserstackHelper.validate_file_path(file_path, SUPPORTED_FILE_EXTENSIONS)
-
-        UI.message("Uploading app to BrowserStack AppAutomate...")
-
-        browserstack_app_id = Helper::BrowserstackHelper.upload_file(browserstack_username, browserstack_access_key, file_path, UPLOAD_API_ENDPOINT, custom_id)
-
-        # Set 'BROWSERSTACK_APP_ID' environment variable, if app upload was successful.
-        ENV['BROWSERSTACK_APP_ID'] = browserstack_app_id
-
-        UI.success("Successfully uploaded app " + file_path + " to BrowserStack AppAutomate with app_url : " + browserstack_app_id.to_s)
-
-        UI.success("Setting Environment variable BROWSERSTACK_APP_ID = " + browserstack_app_id.to_s)
+        browserstack_app_id =
+          Helper::BrowserstackHelper.upload_file_to_browserstack(config, SUPPORTED_FILE_EXTENSIONS, UPLOAD_API_ENDPOINT)
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
         Actions.lane_context[SharedValues::BROWSERSTACK_APP_ID] = browserstack_app_id.to_s

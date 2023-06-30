@@ -1,6 +1,5 @@
 require 'fastlane/action'
 require_relative '../helper/browserstack_helper'
-require 'json'
 
 module Fastlane
   module Actions
@@ -11,21 +10,18 @@ module Fastlane
       SUPPORTED_FILE_EXTENSIONS = ["zip"]
       UPLOAD_API_ENDPOINT = "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite"
 
+      ARTIFACT_TYPE = "test suite"
+      BS_PRODUCT_TYPE = "AppAutomate"
+      SHARED_VALUE_NAME = "BROWSERSTACK_TEST_SUITE_ID"
+
       def self.run(params)
-        browserstack_username = params[:browserstack_username] # Required
-        browserstack_access_key = params[:browserstack_access_key] # Required
-        custom_id = params[:custom_id]
-        file_path = params[:file_path].to_s # Required
+        config = params.values
+        config[:artifact_type] = ARTIFACT_TYPE
+        config[:bs_product_type] = BS_PRODUCT_TYPE
+        config[:shared_value_name] = SHARED_VALUE_NAME
 
-        Helper::BrowserstackHelper.validate_file_path(file_path, SUPPORTED_FILE_EXTENSIONS)
-
-        UI.message("Uploading test suite to BrowserStack AppAutomate...")
-        browserstack_test_suite_id = Helper::BrowserstackHelper.upload_file(browserstack_username, browserstack_access_key, file_path, UPLOAD_API_ENDPOINT, custom_id)
-        UI.success("Successfully uploaded file " + file_path + " to BrowserStack AppAutomate with bs_url : " + browserstack_test_suite_id.to_s)
-
-        UI.success("Setting Environment variable BROWSERSTACK_TEST_SUITE_ID = " + browserstack_test_suite_id.to_s)
-        # Set 'BROWSERSTACK_TEST_SUITE_ID' environment variable, if app upload was successful.
-        ENV['BROWSERSTACK_TEST_SUITE_ID'] = browserstack_test_suite_id
+        browserstack_test_suite_id =
+          Helper::BrowserstackHelper.upload_file_to_browserstack(config, SUPPORTED_FILE_EXTENSIONS, UPLOAD_API_ENDPOINT)
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
         Actions.lane_context[SharedValues::BROWSERSTACK_TEST_SUITE_ID] = browserstack_test_suite_id.to_s
