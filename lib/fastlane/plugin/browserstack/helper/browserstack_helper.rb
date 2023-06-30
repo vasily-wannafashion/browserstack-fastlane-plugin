@@ -95,6 +95,32 @@ module Fastlane
         return browserstack_artifact_id
       end
 
+      # Checks XCTest status on BrowserStack
+      # Params :
+      # +config+::
+      #   +browserstack_username+:: BrowserStack's username.
+      #   +browserstack_access_key+:: BrowserStack's access key.
+      #   +xctest_build_id+:: BrowserStack's ID of automation run.
+      #   +shared_value_name+:: Name of the env for store status.
+      # +check_xctest_api_endpoint+:: BrowserStack's file upload endpoint.
+      def self.check_xctest_automation_status(config, check_xctest_api_endpoint)
+        bs_username = config[:browserstack_username]
+        bs_access_key = config[:browserstack_access_key]
+        shared_value_name = config[:shared_value_name]
+
+        UI.message("Checking XCTest automation run status on BrowserStack...")
+        response_json = execute_request(check_xctest_api_endpoint, "get", bs_username, bs_access_key, USER_AGENT)
+        xctest_automation_status = response_json["status"].to_s
+
+        UI.success("XCTest automation run status: #{xctest_automation_status.to_s} " +
+                     "for launch ID #{config[:xctest_build_id].to_s}")
+
+        UI.success("Setting Environment variable #{shared_value_name} = #{xctest_automation_status.to_s}")
+        ENV[shared_value_name] = xctest_automation_status
+
+        return xctest_automation_status
+      end
+
       # Uploads file to BrowserStack
       # Params :
       # +browserstack_username+:: BrowserStack's username.
