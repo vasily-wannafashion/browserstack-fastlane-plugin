@@ -80,7 +80,7 @@ module Fastlane
         shared_value_name = config[:shared_value_name]
 
         UI.message("Launching XCTest automation run on BrowserStack...")
-        response_json = execute_post_request(run_xctest_api_endpoint, bs_username, bs_access_key, USER_AGENT, payload)
+        response_json = execute_request(run_xctest_api_endpoint, "post", bs_username, bs_access_key, USER_AGENT, payload)
         browserstack_artifact_id = response_json["build_id"]
         UI.success("XCTest automation run launched with app: #{payload[:app]} " +
                      "and test suite: #{payload[:testSuite]} " +
@@ -130,17 +130,18 @@ module Fastlane
           payload[:data] = data
         end
 
-        return execute_post_request(url, username, password, user_agent, payload)
+        return execute_request(url, "post", username, password, user_agent, payload)
       end
 
-      # Executes the POST-request to the given URL.
+      # Executes the HTTP-request to the given URL.
       # Params :
       # +url+:: request endpoint.
+      # +method+:: request method.
       # +username+:: username to access the URL.
       # +password+:: password to access the URL.
       # +user_agent+:: string that specifies the client app.
       # +payload+:: the hash with data to be posted.
-      def self.execute_post_request(url, username, password, user_agent, payload)
+      def self.execute_request(url, method, username, password, user_agent, payload = nil)
         headers = {
           "User-Agent" => user_agent
         }
@@ -148,7 +149,7 @@ module Fastlane
         begin
           response = RestClient::Request.execute(
             url: url,
-            method: :post,
+            method: method,
             user: username,
             password: password,
             headers: headers,
@@ -160,15 +161,9 @@ module Fastlane
           return response_json
 
         rescue RestClient::ExceptionWithResponse => err
-          begin
-            error_response = JSON.parse(err.response.to_s)["error"]
-          rescue
-            error_response = "Internal server error"
-          end
-          # Give error if request failed.
-          UI.user_error!("Request failed!!! Reason : #{error_response}")
+          process_response_error(err)
         rescue StandardError => error
-          UI.user_error!("Request failed!!! Reason : #{error.message}")
+          process_error(error.message)
         end
       end
 
@@ -181,6 +176,20 @@ module Fastlane
           UI.user_error!("file_path is invalid, only files with extensions #{allowed_extensions.to_s} " +
                            "are allowed to be uploaded.")
         end
+      end
+
+      def self.process_response_error(error)
+        begin
+          error_response = JSON.parse(error.response.to_s)["error"]
+        rescue
+          error_response = "Internal server error"
+        end
+        # Give error if request failed.
+        process_error(error_response)
+      end
+
+      def self.process_error(reason)
+        UI.user_error!("Request failed!!! Reason : #{reason}")
       end
     end
   end
