@@ -17,7 +17,7 @@ module Fastlane
       # Params :
       # +browserstack_username+:: BrowserStack's username.
       # +browserstack_access_key+:: BrowserStack's access key.
-      # +custom_id+:: Custom id for app upload.
+      # +custom_id+:: Custom id for file upload.
       # +file_path+:: Path to the file to be uploaded.
       # +url+:: BrowserStack's app upload endpoint.
       def self.upload_file(browserstack_username, browserstack_access_key, file_path, url, custom_id = nil)
@@ -33,6 +33,7 @@ module Fastlane
         headers = {
           "User-Agent" => "browserstack_fastlane_plugin"
         }
+
         begin
           response = RestClient::Request.execute(
             method: :post,
@@ -45,11 +46,8 @@ module Fastlane
 
           response_json = JSON.parse(response.to_s)
 
-          if !response_json["custom_id"].nil?
-            return response_json["custom_id"]
-          else
-            return response_json["app_url"]
-          end
+          return response_json["custom_id"] || response_json["app_url"] || response_json["test_suite_url"]
+
         rescue RestClient::ExceptionWithResponse => err
           begin
             error_response = JSON.parse(err.response.to_s)["error"]
@@ -60,6 +58,16 @@ module Fastlane
           UI.user_error!("App upload failed!!! Reason : #{error_response}")
         rescue StandardError => error
           UI.user_error!("App upload failed!!! Reason : #{error.message}")
+        end
+      end
+
+      def self.validate_file_path(file_path, allowed_extensions)
+        UI.user_error!("No file found at '#{file_path}'.") unless File.exist?(file_path)
+
+        # Validate file extension.
+        file_path_parts = file_path.split(".")
+        unless file_path_parts.length > 1 && allowed_extensions.include?(file_path_parts.last)
+          UI.user_error!("file_path is invalid, only files with extensions " + allowed_extensions.to_s + " are allowed to be uploaded.")
         end
       end
     end

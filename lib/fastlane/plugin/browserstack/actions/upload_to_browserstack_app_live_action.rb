@@ -16,7 +16,7 @@ module Fastlane
         browserstack_access_key = params[:browserstack_access_key] # Required
         file_path = params[:file_path].to_s # Required
 
-        validate_file_path(file_path)
+        Helper::BrowserstackHelper.validate_file_path(file_path, SUPPORTED_FILE_EXTENSIONS)
 
         UI.message("Uploading app to BrowserStack AppLive...")
 
@@ -31,17 +31,6 @@ module Fastlane
 
         # Setting app id in SharedValues, which can be used by other fastlane actions.
         Actions.lane_context[SharedValues::BROWSERSTACK_LIVE_APP_ID] = browserstack_app_id
-      end
-
-      # Validate file_path.
-      def self.validate_file_path(file_path)
-        UI.user_error!("No file found at '#{file_path}'.") unless File.exist?(file_path)
-
-        # Validate file extension.
-        file_path_parts = file_path.split(".")
-        unless file_path_parts.length > 1 && SUPPORTED_FILE_EXTENSIONS.include?(file_path_parts.last)
-          UI.user_error!("file_path is invalid, only files with extensions " + SUPPORTED_FILE_EXTENSIONS.to_s + " are allowed to be uploaded.")
-        end
       end
 
       def self.description
