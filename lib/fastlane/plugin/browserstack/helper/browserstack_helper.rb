@@ -52,6 +52,49 @@ module Fastlane
         return browserstack_artifact_id
       end
 
+      # Runs XCTest on BrowserStack
+      # Params :
+      # +config+::
+      #   +browserstack_username+:: BrowserStack's username.
+      #   +browserstack_access_key+:: BrowserStack's access key.
+      #   +app_url+:: App under testing URL on BrowserStack.
+      #   +test_suite_url+:: Test suite URL on BrowserStack.
+      #   +devices+:: Array of the devices to launch XCTest automation run on.
+      #   +only_testing+:: Array of the tests to execute.
+      #   +skip_testing+:: Array of the tests to skip.
+      #   +enable_result_bundle+ :: Flag to enable/disable generating result bundles for XCTest build execution.
+      #   +shared_value_name+:: Name of the env for store the link to the uploaded artifact.
+      # +run_xctest_api_endpoint+:: BrowserStack's file upload endpoint.
+      def self.run_xctest_on_browserstack(config, run_xctest_api_endpoint)
+        bs_username = config[:browserstack_username]
+        bs_access_key = config[:browserstack_access_key]
+
+        payload = {}
+        payload[:app] = config[:app_url]
+        payload[:testSuite] = config[:test_suite_url]
+        payload[:devices] = config[:devices]
+        payload["only-testing"] = config[:only_testing] unless config[:only_testing].nil?
+        payload["skip-testing"] = config[:skip_testing] unless config[:skip_testing].nil?
+        payload["enableResultBundle"] = config[:enable_result_bundle] unless config[:enable_result_bundle].nil?
+
+        shared_value_name = config[:shared_value_name]
+
+        UI.message("Launching XCTest automation run on BrowserStack...")
+        response_json = execute_post_request(run_xctest_api_endpoint, bs_username, bs_access_key, USER_AGENT, payload)
+        browserstack_artifact_id = response_json["build_id"]
+        UI.success("XCTest automation run launched with app: #{payload[:app]} " +
+                     "and test suite: #{payload[:testSuite]} " +
+                     "on devices: #{payload[:devices]} " +
+                     "on BrowserStack Automation with bs_url: #{browserstack_artifact_id.to_s}" +
+                     "including tests: #{payload["only-testing"]}" +
+                     "skipping tests: #{payload["skip-testing"]}")
+
+        UI.success("Setting Environment variable #{shared_value_name} = #{browserstack_artifact_id.to_s}")
+        ENV[shared_value_name] = browserstack_artifact_id
+
+        return browserstack_artifact_id
+      end
+
       # Uploads file to BrowserStack
       # Params :
       # +browserstack_username+:: BrowserStack's username.
