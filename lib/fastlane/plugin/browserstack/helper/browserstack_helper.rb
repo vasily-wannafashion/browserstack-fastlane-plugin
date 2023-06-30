@@ -1,6 +1,7 @@
 require 'fastlane_core/ui/ui'
 require 'rest-client'
 require 'json'
+require 'zip'
 
 module Fastlane
   UI = FastlaneCore::UI unless Fastlane.const_defined?("UI")
@@ -158,6 +159,75 @@ module Fastlane
         return xctest_sessions_list
       end
 
+      # Download XCResult files from BrowserStack
+      # Params :
+      # +config+::
+      #   +browserstack_username+:: BrowserStack's username.
+      #   +browserstack_access_key+:: BrowserStack's access key.
+      #   +xctest_build_id+:: BrowserStack's ID of automation run.
+      #   +xctest_sessions_list+:: BrowserStack's session IDs of results to download.
+      #   +dir_path+:: Path to the directory to save the files.
+      #   +build_id_key+:: Key to replace placeholder of build_id in the `download_api_endpoint`.
+      #   +session_id_key+:: Key to replace placeholder of session_id in the `download_api_endpoint`.
+      #   +shared_value_name+:: Name of the env for store the paths to the downloaded artifacts.
+      # +download_api_endpoint+:: BrowserStack's xcresult file download endpoint.
+      def self.download_xcresult_files(config, download_api_endpoint)
+        bs_username = config[:browserstack_username]
+        bs_access_key = config[:browserstack_access_key]
+
+        xctest_build_id = config[:xctest_build_id]
+        xctest_sessions_list = config[:xctest_sessions_list].split(",")
+        dir_path = config[:dir_path]
+
+        build_id_key = config[:build_id_key]
+        session_id_key = config[:session_id_key]
+
+        shared_value_name = config[:shared_value_name]
+
+        xcresult_paths_list = []
+
+        xctest_sessions_list.each do |xctest_session_id|
+          UI.message("Getting XCResult from BrowserStack for session ID #{xctest_session_id}...")
+
+          concrete_build_and_session_api_endpoint = download_api_endpoint.clone
+                                                      .gsub!(build_id_key, xctest_build_id)
+                                                      .gsub!(session_id_key, xctest_session_id)
+
+          concrete_xcresult_archive_filename = "#{xctest_session_id}.zip"
+          concrete_xcresult_archive_path = File.join(dir_path, concrete_xcresult_archive_filename)
+          concrete_xcresult_filename = "#{xctest_session_id}.xcresult"
+          concrete_xcresult_path = File.join(dir_path, concrete_xcresult_filename)
+
+          download_file_from_url(concrete_build_and_session_api_endpoint,
+                                 bs_username,
+                                 bs_access_key,
+                                 USER_AGENT,
+                                 concrete_xcresult_archive_path)
+
+          Zip::File.open(concrete_xcresult_archive_path) do |archive|
+            archive.each do |file_inside_archive|
+              file_inside_archive_path_components = Pathname(file_inside_archive.name).each_filename.to_a
+              file_inside_archive_path_components[0] = concrete_xcresult_path
+              file_outside_archive_path = File.join(file_inside_archive_path_components)
+              archive.extract(file_inside_archive, file_outside_archive_path) unless File.exist?(file_outside_archive_path)
+            end
+          end
+
+          File.delete(concrete_xcresult_archive_path)
+
+          xcresult_paths_list.append(concrete_xcresult_path)
+        end
+
+        UI.success("XCResult files list: #{xcresult_paths_list.to_s} " +
+                     "for launch ID #{config[:xctest_build_id].to_s}")
+
+        xcresult_paths_list_as_s = xcresult_paths_list.join(',')
+        UI.success("Setting Environment variable #{shared_value_name} = #{xcresult_paths_list_as_s.to_s}")
+        ENV[shared_value_name] = xcresult_paths_list_as_s
+
+        return xcresult_paths_list
+      end
+
       # Uploads file to BrowserStack
       # Params :
       # +browserstack_username+:: BrowserStack's username.
@@ -196,6 +266,29 @@ module Fastlane
         return execute_request(url, "post", username, password, user_agent, payload)
       end
 
+      # Downloads file from the given URL.
+      # Params :
+      # +url+:: download endpoint.
+      # +username+:: username to access the URL.
+      # +password+:: password to access the URL.
+      # +user_agent+:: string that specifies the client app.
+      # +file_path+:: path to place downloaded file.
+      def self.download_file_from_url(url, username, password, user_agent, file_path)
+        UI.message(url)
+        UI.message(file_path)
+
+        response = execute_request(url, "get", username, password, user_agent, payload = nil, expected_raw_response = true)
+
+        if response.code == 200
+          File.open(file_path, 'wb') do |file|
+            file.write(response.body)
+          end
+          puts "File downloaded and saved to #{file_path}"
+        else
+          puts "Failed to download the file. Response status code: #{response.code}"
+        end
+      end
+
       # Executes the HTTP-request to the given URL.
       # Params :
       # +url+:: request endpoint.
@@ -204,7 +297,17 @@ module Fastlane
       # +password+:: password to access the URL.
       # +user_agent+:: string that specifies the client app.
       # +payload+:: the hash with data to be posted.
-      def self.execute_request(url, method, username, password, user_agent, payload = nil)
+      # +expected_raw_response+:: the flag indicating the need to download the file.
+      def self.execute_request(
+        url,
+        method,
+        username,
+        password,
+        user_agent,
+        payload = nil,
+        expected_raw_response = false
+      )
+
         headers = {
           "User-Agent" => user_agent
         }
@@ -216,11 +319,13 @@ module Fastlane
             user: username,
             password: password,
             headers: headers,
-            payload: payload
+            payload: payload,
+            raw_response: expected_raw_response
           )
 
-          response_json = JSON.parse(response.to_s)
+          return response if expected_raw_response
 
+          response_json = JSON.parse(response.to_s)
           return response_json
 
         rescue RestClient::ExceptionWithResponse => err
